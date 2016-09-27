@@ -27,16 +27,31 @@
 </table>
 
 <hr noshade="noshade">
-<h2><font color="#005128">Project Title: </font><font><font color="#005128">[Your Project Title]</font></font></h2>
+<h2><font color="#005128">Project Title: </font><font><font color="#005128">GPU Eikonal Solver</font></font></h2>
 
-<h2><font color="#005128">Name: [Your Name]<br>
+<h2><font color="#005128">Name: Olivier Hamel<br>
 </font></h2>
 
 <hr noshade="noshade">
-<b><font color="#005128">Project Outline:</font></b> [at most
-1/2 page outline of what you intend to do]
-<p><b><font color="#005128">Startup Paper(s):</font></b> [list your
-startup paper(s) and include a link to the PDF file]</p>
+<b><font color="#005128">Project Outline:</font></b>
+
+Implement and evaluate an improved GPU eikonal solver based off FIM (or some other approach). Possible avenues
+include bucketing wavefront groups (similar in spirit to radius-stepping) to avoid redundent
+iterations caused by having a single expansion-front, user-defined heuristics
+(A*-like, likely trivial), stop-any-time incremental refinement, and non-grid inputs.
+
+Evaluation will include synthetic data-sets ('empty', random-weight/speed, regular pattern, etc),
+non-sythetic data-sets, and a comparison to the performance of existing GPU algorithms. 
+
+
+<p>
+  <b><font color="#005128">Startup Paper(s):</font></b>
+<ul>
+  <li><a href="literature/10.1145@2925426.2926287.pdf">DSMR: A Parallel Algorithm for Single-Source Shortest Path Problem</a></li>
+  <li><a href="literature/blelloch2016.pdf">Parallel Shortest Paths Using Radius Stepping</a></li>
+  <li><a href="literature/jeong2008.pdf">A Fast Iterative Method for Eikonal Equations</a></li>
+</ul>
+</p>
 
 <p><b><font color="#005128">Deliverables:</font></b></p>
 

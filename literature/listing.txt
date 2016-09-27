@@ -1,0 +1,31 @@
+ACM SPAA:
+Provably Good and Practically Efficient Parallel Race Detection  for Fork-Join Programs 
+Brief Announcement: Dynamic Determinacy Race Detection for Task Parallelism  with Futures 
+Latency-Hiding Work Stealing: Scheduling Interacting Parallel Computations  with Work Stealing
+Extending the Nested Parallel Model to the Nested Dataflow Model with Provably Efficient Schedulers
+Robust and Probabilistic Failure-Aware Placement
+Parallel Approaches to the String Matching Problem on the GPU
+Lock-free Transactions without Rollbacks for Linked Data Structures
+Concurrent Search Data Structures Can Be Blocking and Practically Wait-Fre
+Parallel Shortest Paths Using Radius Stepping
+Parallelism in Randomized Incremental Algorithms
+
+IEEE:
+Subgraph Counting: Color Coding Beyond Trees 
+Rabbit Order: Just-in-Time Parallel Reordering for Fast Graph Analysis 
+Random Regular Graph and Generalized De Bruijn Graph with k-Shortest Path Routing 
+Architecting and Programming a Hardware-Incoherent Multiprocessor Cache Hierarchy 
+High Performance Parallel Stochastic Gradient Descent in Shared Memory
+Parallel Graph Coloring for Manycore Architectures 
+
+ACM SC:
+Hybrid CPU-GPU scheduling and execution of tree traversals
+DSMR: A Parallel Algorithm for Single-Source Shortest Path Problem
+Origami: Folding Warps for Energy Efficient GPUs
+
+
+Top Pick:
+DSMR: A Parallel Algorithm for Single-Source Shortest Path Problem
+Lock-free Transactions without Rollbacks for Linked Data Structures
+Concurrent Search Data Structures Can Be Blocking and Practically Wait-Free
+Parallel Shortest Paths Using Radius Stepping
