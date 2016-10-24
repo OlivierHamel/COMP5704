@@ -6,6 +6,7 @@
 % ===========================================================================
 \documentclass[11pt]{article}       %--- LATEX 2e base
 \usepackage{latexsym}               %--- LATEX 2e base
+\usepackage{comment}
 %---------------- Wide format -----------------------------------------------
 \textwidth=6in \textheight=9in \oddsidemargin=0.25in
 \evensidemargin=0.25in \topmargin=-0.5in
@@ -52,18 +53,18 @@
 % Title
 % ############################################################################
 
-\title{LITERATURE REVIEW: --- Your Project Title ---}
+\title{LITERATURE REVIEW: Eikonal Solver for GPU}
 
 
 % ############################################################################
 % Author(s) (no blank lines !)
 \author{
 % ############################################################################
-John Doe\\
+Olivier Hamel\\
 School of Computer Science\\
 Carleton University\\
 Ottawa, Canada K1S 5B6\\
-{\em John-Doe@scs.carleton.ca}
+{\em olivierhamel@cmail.carleton.ca}
 % ############################################################################
 } % end-authors
 % ############################################################################
@@ -75,16 +76,26 @@ Ottawa, Canada K1S 5B6\\
 % ############################################################################
 \section{Introduction} \label{intro}
 % ############################################################################
-
+\begin{comment}
 Introduce your project topic (start from parallel computing in
 general and lead to your particular topic). Describe what you
 intend to achieve in your project.
+\end{comment}
+
+
+The Eikonal equation is used to model the propagation of wave-fronts through a (typically isotropic) field. It has numerous applications (e.g. graphics, computer vision, pathfinding, etc.) but the canonical algorithm for solving it, the Fast Marching Method, is difficult to parallelise. This has prompted a number of attempts to create methods more amendable to parallelisations. These methods can be classified into 3 main approaches: The Fast Marching Method, the Fast Sweeping Method\cite{qian2007fast}, and the Fast Iterative Method\cite{jeong2008fast}.
+
+Both FSM and FIM are much easier to parallelise than FMM, but both also perform poorly when confronted with non-straight characteristic lines. (FSM is particularly awful in this regard.) Fixing this problem requires that the causal wave-front be tracked in some fashion to minimise the re-computation of nodes in the grid.
+
+We intend to implement and evaluate an Eikonal solver for GPUs which improves on FIM's performance by avoiding re-computations due to non-straight characteristic lines. The evaluation will consist of a performance comparison between the implemented algorithm and vanilla FIM on the GPU executing a number of benchmarks (synthetic and non-synthetic). The algorithm in question will be a GPU implementation of the Semi-Ordered Fast Iterative Method (SOFI)\cite{gillberg2011semi} in two dimensions.
+
+
 
 
 % ############################################################################
 \section{Literature Review} \label{litrev}
 % ############################################################################
-
+\begin{comment}
 Give an overview of the relevant literature. Cite all relevant
 papers, like \cite{DEL07}, \cite{PD07}, \cite{DER07}, \cite{LDR07},
 \cite{DLX06}, \cite{CDE06}, and \cite{DFL06}. Outline for each paper
@@ -92,6 +103,209 @@ the relevant results in relation to your project. Make sure that you
 don't just list all relevant papers in random order. Devise a scheme
 to group papers by subject. The goal is to present to the reader the
 state-of-the-art in the field selected for your project.
+\end{comment}
+
+There are three main approaches for solving Eikonal equations: FMM, FSM, FIM.
+
+FMM is essentially a Dijkstra with a more complicated cost function. Since its node expansion follows the causal wave-front it minimises the number of cost function evaluations, but is difficult to parallelise due to the sequential ordering required by its open queue. It has a number of variants, most of which are concerned with reducing the cost of managing its priority queue. These include Simplified FMM (nodes are not deleted from the queue when reinserted), Untidy FMM\cite{yatziv2006n} (quantisation of the queue to provide a precision/performance trade-off).
+
+FSM operates by performing a number of Gauss-Seidel iterations until the solution converges. For straight characteristic curves was shown by Qian et al. 2007 to require only $ 2^{d} $ for d dimensions. Non-straight characteristic curves require repeated sweeps until the error becomes acceptable. It performs terribly whenever the characteristic curves' tangents change quadrant direction frequently due to the number of iterations this entails. Some improvements include Locked Sweep Method (tracks which sweep planes can no longer yield an improvement, 'locking' them) and the Two Queue method (resolve near-future cells before far-future cells).\cite{bak2010some} In general the FSM is inferior to FIM. (See the performance evaluations by Gomez et al. 2015.\cite{gomez2015fast})
+
+FIM is half-way between FSM and FMM. It follows a node expansion wave-front, but unlike FMM it does not use a sorted queue but an ordered list. This entails some iterations for the solution to converge as eagerly evaluated nodes are recalculated, but typically not as much as FSM would. There are a few variants such as Block FIM\cite{jeong2008fast} which attempts to maintain memory access locality to improve performance, and the Semi-ordered Fast Iteration Method (SOFI)\cite{gillberg201rg2011} which takes the Two-Queue technique and applies it FIM.
+
+Aside from these there are a number of papers focused on domain decomposition of the grid-space for parallel execution of these subdomains,\cite{detrixhe2016hybrid}\cite{hong2016multi}\cite{weinbub2016shared}, and use of non-grid spaces\cite{mirzadeh2016parallel}. Finally, while it does not bare directly on our project, it is interesting to note Zhou \& Zeng 2015 where they parallelise A* (and therefore Dijkstra and other queue-based label correcting algorithms) for execution on the GPU.\cite{zhou2015massively}
+
+
+
+
+
+
+
+\begin{comment}
+
+Primary approaches for solving eikonal
+    FMM: dijkstra-like, follows causality of wavefront, aka level set method
+    FIM: semi-dijkstra-like, doesn't order wavefront which means it can waste
+         time recomputing cells
+    FSM: uses a number of Gauss-Seidel iterations (sweeps along quadrant directions) to converge solution. no queue required. # of sweeps dependent on eikonal function. distance from single point is 2^d iterations (d = # of dimensions). other functions are harder to figure out (depends on # tangent line quadrant changes of the characteristic lines). analysis provided for deciding when to stop iterating. tl;dr: if your characteristic lines have few direction changes -> good, many -> utterly horrible performance
+
+FMM specialisations:
+    Simplified FMM: don't remove nodes from queue when reinserting; when node is pulled again from queue its closed, and you can ignore/continue. 2x perf of FMM when total time is dominated by queue management.
+    
+    Untidy FMM: quantise the queue by some threshold, nodes falling into the same bucket are put into that bucket's FIFO. provides a tunable precision/perf trade-off (assuming time dominated by queue management)
+
+
+FIM specialisations:
+    Group MM: Picks a subset of narrow and resolves them all at once. No sorting required (O(n)), but evaluates cost 2x as often as FMM.
+    
+    Double Queue FMM: similar to/modified GMM; high-future-time newly explored nodes are placed in the far-queue, while the others are in the near queue.
+    near queue is processed first, then far becomes near.
+
+FSM specialisations:
+    Lock Sweep Method: 'locks' directions which cannot improve the iteration
+    
+
+Hybrid Methods:
+    Aside from specialisations of FMM/FIM/FSM (there's some overlap).
+    Main approach: Domain decomposition (block-ification) run on separate processors.
+\end{comment}
+
+
+
+
+\begin{comment}
+ahmed2011
+    "A THIRD ORDER ACCURATE FAST MARCHING METHOD FOR THE EIKONAL EQUATION IN TWO DIMENSIONS"
+    Skimmed: Higher precision resolution for 2d space eikonals.
+    
+bak2010
+    "SOME IMPROVEMENTS FOR THE FAST SWEEPING METHOD"
+    Locked-Sweeping improvement.
+    Two-queue improvement.
+
+bertsekas1993
+    "A Simple and Fast Label Correcting Algorithm for Shortest Paths"
+    Skimmed: Bills itself as a "low overhead approximation to Dijkstra" and possible to combine w/ threshold methods.
+    Could be interesting if it could be applied to FIM/FSM/etc.
+
+blelloch2016
+    "Parallel Shortest Paths Using Radius Stepping"
+    Solves SSSP. Builds on delta-stepping.
+
+chacon2014 parallel hcm v2
+    "A parallel Heap-Cell Method for Eikonal equations."
+    Parallelisation of HCM for shared-memory.
+    
+clawson2014
+    "CAUSAL DOMAIN RESTRICTION FOR EIKONAL EQUATIONS"
+    Explores the use of heuristics to define a 'causal domain restriction'.
+    Claims to maintain convergence under mesh-refinement.
+    TODO: Read. Seems plausible for use.
+    
+detrixhe2013
+    "A parallel fast sweeping method for the Eikonal Equation"
+    Claims: Improvement/variant of classic FSM with better scaling.
+    TODO: Read. Seems plausible for use. (Used by pHCM?)
+
+detrixhe2016
+    "Hybrid Massively Parallel Fast Sweeping Method for Static Hamilton-Jacobi equations"
+    
+    Hyperplane Stepping Parallel Fast Sweeping Method (HSP-FSM).
+        Improvement of detrixhe2013's shared mem fast sweep method to handle more general Hamilton-Jacobi equations (rather than just Eikonal).
+    
+        Fine-grained portion of HSP-FSM needs a parallel eikonal solver. They use theirs (detrixhe2013), but any should work (FIM, PMM, Parallel HCM).
+        (Claimed by them.)
+    
+    2 part model. Optimised to spread out on distributed memory machines, then
+    specialise to shared-memory local clusters.
+
+gillberg2011
+    "A Semi-Ordered Fast Iterative Method (SOFI) for Monotone Front Propagation in Simulations of Geological Folding"
+    Skim: Seems to combine 2 Queue from bak2010 with FIM.
+
+gillberg2012
+    "A new parallel 3D front propagation algorithm for fast simulation of geological folds"
+    Skim: Same as gillberg2011 but in 3d?
+
+gomez2015 eikonal experimental survey
+    "Fast Methods for Eikonal Equations: an Experimental Survey"
+    Experimentally tests the following w/ a serial implementation:
+        FMM binary heap
+        FMM fib heap
+        Simplified FMM
+        Untidy FMM
+        FIM
+        GMM
+        FSM
+        LSM
+        LSM + Double-Queue
+
+hong2016
+    "A Multi-GPU Fast Iterative Method for Eikonal Equations using On-the-ﬂy Adaptive Domain Decomposition"
+    All about figuring how to decompose/partition parts of the space to run FIM blocks on separate GPUs.
+    
+
+jeong2008
+    "A FAST ITERATIVE METHOD FOR EIKONAL EQUATIONS"
+    Introduces FIM and its block variant.
+
+kalton_thesis2010
+    "Dijkstra-like Ordered Upwind Methods for Solving Static Hamilton-Jacobi Equations"
+    Skimmed: Looks at a bunch of stuff for FMM-like approaches to solving eikonals.
+
+luo2013
+    "A uniformly second order fast sweeping method for the eikonal equations"
+    Skimmed: Appears to be about improving precision of results for FSM-related approaches
+
+maleki2016 dsmr
+    "DSMR: A Parallel Algorithm for Single-Source Shortest Path Problem"
+    SSSP solver. Might be worth looking into for later?
+
+mateti1982
+    "Parallel Algorithms for the Single Source Shortest Path Problem"
+    Explores the parallelisation of well known SSSP algorithms (Dijkstra and Moore). Takes the approach of focusing on mechanical translations/mutations of existing algos to obtain new ones. Explores the space for various parallel machine architectures and algo designs.
+    
+mirzadeh2016
+    "Parallel level-set methods on adaptive tree-based grids"
+    Skimmed: MPI approach for decomposing quad-tree/oct-tree level-set problems.
+
+murman2015
+    "Development of a Spectral-Element Approach for the Eikonal Equation"
+    Skimmed: Remaps eikonal equation to use a 'spectral-element' approach. Solves remapped problem w/ finite-element flow solvers for Navier-Stokes equation.
+    
+qian2007
+    "A Fast Sweeping Method for Static Convex Hamilton–Jacobi Equations"
+    introduces FSM
+
+thorup1999
+    "Undirected Single-Source Shortest Paths with Positive Integer Weights in Linear Time"
+    Didn't read. Possibly applicable to problem.
+    
+weber2008
+    "Parallel Algorithms for Approximation of Distance Maps on Parametric Surfaces"
+    Skimmed.
+    O(n), shared mem and GPU impl.
+    Introduces PMM (Parallel Marching Method) on GPU.
+        Outputs signed distance map, doesn't solve the general Eikonal equation.
+    Provides CUDA implementation.
+    Error is about 2x as bad as MMP algorithm, but still really small.
+    Time performance is amazing compared to MMP (~4x orders of magnitude, w/o GPU-ification).
+    
+    Quick review of wiki article on Eikonal:
+        "In the special case when f = 1, the solution gives the signed distance from ∂Ω."
+    -> PMM is specialisation for case where speed function = 1.
+    -> Obvious extension: If speed function is constant speed we can normalise
+       to handle it and remap the output to account for this.
+
+weinbub2016 compare pfmm fim sofm
+    "Comparison of the Parallel Fast Marching Method, the Fast Iterative Method, and the Parallel Semi-Ordered Fast Iterative Method"
+    Exactly what it says on the tin.
+
+weinbub2016 shared mem fmm overlap decompose
+    "Shared-Memory Parallelization of the Fast Marching Method Using an Overlapping Domain-Decomposition Approach"
+    Introduces PFMM. Intended for Shared-Memory/Distributed Memory.
+    Basically FMM + Domain Decomposition.
+        Break up grid/domain into blocks. Each processor solves local FMM.
+        Exchange blocks edges/interfaces. Integrate changes.
+        Repeat until converges.
+    Tests idea by applying same domain decomposition to FIM.
+    Serial performance is just slighly slower for multi-FMM (PFMM) vs FMM, much faster than FIM.
+    PFMM has good scaling for up to 8x processors, but quickly levels off.
+    FIM has lower performance but scales better than PFMM for > x8 proc.
+    TODO: Compare to pHCM, this seems awfully similar.
+    
+
+yatziv2006
+    "O(n) implementation of the fast marching method"
+    Introduces Untidy Priority Queue variant of FMM.
+    Untidy Priority Queue:
+        Bucketed priority queue. Each bucket has a resolution/span. If added node falls in bucket it is added to that bucket's FIFO queue.
+    Claims error is on same order of magnitude as exact priority queue.
+    
+zhou2015
+    "Massively Parallel A* Search on a GPU"
+    Parallelises A* by expanding the narrow-band in parallel. (Some complications on resolving multiply-expanded nodes, and such. Nothing major.)
+\end{comment}
 
 
 % ############################################################################

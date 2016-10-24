@@ -1,0 +1,65 @@
+\begin{thebibliography}{10}
+
+\bibitem{bak2010some}
+Stanley Bak, Joyce McLaughlin, and Daniel Renzi.
+\newblock Some improvements for the fast sweeping method.
+\newblock {\em SIAM Journal on Scientific Computing}, 32(5):2853--2874, 2010.
+
+\bibitem{detrixhe2016hybrid}
+Miles Detrixhe and Fr{\'e}d{\'e}ric Gibou.
+\newblock Hybrid massively parallel fast sweeping method for static
+  hamilton--jacobi equations.
+\newblock {\em Journal of Computational Physics}, 322:199--223, 2016.
+
+\bibitem{gillberg2011semi}
+Tor Gillberg.
+\newblock A semi-ordered fast iterative method (sofi) for monotone front
+  propagation in simulations of geological folding.
+\newblock In {\em MODSIM2011, 19th International Congress on Modelling and
+  Simulation}, pages 641--647, 2011.
+
+\bibitem{gomez2015fast}
+Javier~V Gomez, David Alvarez, Santiago Garrido, and Luis Moreno.
+\newblock Fast methods for eikonal equations: an experimental survey.
+\newblock {\em arXiv preprint arXiv:1506.03771}, 2015.
+
+\bibitem{hong2016multi}
+Sumin Hong and Won-Ki Jeong.
+\newblock A multi-gpu fast iterative method for eikonal equations using
+  on-the-fly adaptive domain decomposition.
+\newblock {\em Procedia Computer Science}, 80:190--200, 2016.
+
+\bibitem{jeong2008fast}
+Won-Ki Jeong and Ross~T Whitaker.
+\newblock A fast iterative method for eikonal equations.
+\newblock {\em SIAM Journal on Scientific Computing}, 30(5):2512--2534, 2008.
+
+\bibitem{mirzadeh2016parallel}
+Mohammad Mirzadeh, Arthur Guittet, Carsten Burstedde, and Frederic Gibou.
+\newblock Parallel level-set methods on adaptive tree-based grids.
+\newblock {\em Journal of Computational Physics}, 322:345--364, 2016.
+
+\bibitem{qian2007fast}
+Jianliang Qian, Yong-Tao Zhang, and Hong-Kai Zhao.
+\newblock A fast sweeping method for static convex hamilton--jacobi equations.
+\newblock {\em Journal of Scientific Computing}, 31(1):237--271, 2007.
+
+\bibitem{weinbub2016shared}
+Josef Weinbub and Andreas H{\"o}ssinger.
+\newblock Shared-memory parallelization of the fast marching method using an
+  overlapping domain-decomposition approach.
+\newblock In {\em Proceedings of the 24th High Performance Computing
+  Symposium}, page~18. Society for Computer Simulation International, 2016.
+
+\bibitem{yatziv2006n}
+Liron Yatziv, Alberto Bartesaghi, and Guillermo Sapiro.
+\newblock O (n) implementation of the fast marching algorithm.
+\newblock {\em Journal of computational physics}, 212(2):393--399, 2006.
+
+\bibitem{zhou2015massively}
+Yichao Zhou and Jianyang Zeng.
+\newblock Massively parallel a* search on a gpu.
+\newblock In {\em Proceedings of the Twenty-Ninth AAAI Conference on Artificial
+  Intelligence}, AAAI'15, pages 1248--1254. AAAI Press, 2015.
+
+\end{thebibliography}
