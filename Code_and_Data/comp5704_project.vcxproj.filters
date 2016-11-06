@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="lib\docopt.cpp">
+      <UniqueIdentifier>{a03e1c91-dce9-4419-b71f-32fab33b4cfb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\clhpp">
+      <UniqueIdentifier>{c84be293-00ba-4a66-b489-5adbd0643230}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\optional">
+      <UniqueIdentifier>{d6b30b11-0e4f-43a6-b745-395151bb1ecb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\docopt.cpp\docopt.cpp">
+      <Filter>lib\docopt.cpp</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\pch.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\clhpp\cl2.hpp">
+      <Filter>lib\clhpp</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\docopt.cpp\docopt.h">
+      <Filter>lib\docopt.cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\docopt.cpp\docopt_private.h">
+      <Filter>lib\docopt.cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\docopt.cpp\docopt_util.h">
+      <Filter>lib\docopt.cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\docopt.cpp\docopt_value.h">
+      <Filter>lib\docopt.cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\optional\optional.hpp">
+      <Filter>lib\optional</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\eikonal.cl">
+      <Filter>src</Filter>
+    </None>
+  </ItemGroup>
+</Project>
