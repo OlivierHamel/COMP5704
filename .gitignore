@@ -243,3 +243,12 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+Code_and_Data/data/solution*
+Code_and_Data/*.vcxproj*
+
+Code_and_Data/data/saved_runs/*
+Code_and_Data/data/dbg_*.png
+Code_and_Data/data/cost_field.png
+*.cxlovr
+Code_and_Data/data/trials/*
+*.sln

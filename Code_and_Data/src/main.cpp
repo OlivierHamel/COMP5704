@@ -1,6 +1,9 @@
-// comp5704_project.cpp : Defines the entry point for the console application.
-//
 
+#include "eikonal.h"
+#include "test_runner.h"
+#include "util_field.h"
+#include "util_files.h"
+#include "util_opencl.h"
 
 namespace {
 
@@ -87,95 +90,6 @@ Options:
     -d --devicetype <type>  Specify which device type to use. Options: gpu, cpu, any [default: gpu]
 )[[";
 
-
-
-auto const k_kernel_src =
-#include "eikonal.cl"
-;
-
-}
-
-template<typename F>
-auto cl_try(char const* const taskName, F&& task) -> std::result_of_t<F()> {
-    try { return task(); }
-    catch (const cl::Error& e) {
-        std::cout << "OpenCL Error.\n\tTask: " << taskName << "\n\tError: " << e.what() << "\n";
-        exit(-1);
-    }
-}
-
-
-std::vector<std::string> split_string_by_spaces_dump_empty(char const* const s) {
-    if (!(s && *s)) return {};
-
-    std::vector<std::string> exts;
-    auto const addExt = [&](char const* const head, char const* const end) {
-        auto const len = end - head;
-        if (0 < len) exts.push_back(std::string(head, len));
-    };
-
-    auto const  s_end = s + strlen(s);
-    char const* head  = s;
-    while (char const* end = strchr(head, ' ')) {
-        addExt(head, end);
-        head = end + 1;
-    }
-
-    // last one isn't picked up by the main loop
-    addExt(head, s + strlen(s));
-    return exts;
-}
-
-std::vector<std::string> cl_splice_extensions(char const* const s)
-{ return split_string_by_spaces_dump_empty(s); }
-
-std::string display_format_mem(cl_ulong const bytes) {
-    char const* k_suffixes[] = {"bytes", "KiB", "MiB", "GiB"};
-    auto const  k_num_suffix = sizeof(k_suffixes) / sizeof(k_suffixes[0]);
-
-    size_t scale  = 0;
-    double f      = (double)bytes;
-    for (; (scale < k_num_suffix) && (1024 < f); ++scale)
-        f /= 1024;
-
-    char buffer[512];
-    sprintf_s(buffer, "%f %s", f, k_suffixes[scale]);
-    return buffer;
-}
-
-
-std::string cl_device_type_string(cl_device_type const type) {
-    if (type == 0) return "<none?>";
-
-    std::string s;
-    auto const add = [&](cl_device_type const flag, char const* name) {
-        if (!(type & flag)  ) return;
-        if (!s.empty()      ) s += " ";
-        s += name;
-    };
-    add(CL_DEVICE_TYPE_CPU          , "CPU");
-    add(CL_DEVICE_TYPE_GPU          , "GPU");
-    add(CL_DEVICE_TYPE_ACCELERATOR  , "Accelerator");
-    add(CL_DEVICE_TYPE_CUSTOM       , "Custom");
-    return s.empty() ? "<unknown>" : s;
-}
-
-optional<cl_device_type> cl_device_type_parse(char const* const s) {
-    auto const parts = split_string_by_spaces_dump_empty(s);
-    if (parts.empty()) return {};
-
-    cl_device_type  device_type = 0;
-    for (auto&& p : parts) {
-        auto const matches = [&](char const* const k) { return _strcmpi(p.c_str(), k) == 0; };
-             if (matches("all"          )) return CL_DEVICE_TYPE_ALL;
-        else if (matches("cpu"          )) device_type |= CL_DEVICE_TYPE_CPU;
-        else if (matches("gpu"          )) device_type |= CL_DEVICE_TYPE_GPU;
-        else if (matches("accelerator"  )) device_type |= CL_DEVICE_TYPE_ACCELERATOR;
-        else if (matches("custom"       )) device_type |= CL_DEVICE_TYPE_CUSTOM;
-        else    return {};
-    }
-
-    return device_type;
 }
 
 
@@ -184,11 +98,11 @@ int main(int const argc, char const* const argv[]) {
     if (IsDebuggerPresent()) {
         std::cerr.rdbuf(&charDebugOutput);
         std::clog.rdbuf(&charDebugOutput);
-        std::cout.rdbuf(&charDebugOutput);
+        //std::cout.rdbuf(&charDebugOutput);
 
         std::wcerr.rdbuf(&wcharDebugOutput);
         std::wclog.rdbuf(&wcharDebugOutput);
-        std::wcout.rdbuf(&wcharDebugOutput);
+        //std::wcout.rdbuf(&wcharDebugOutput);
     }
 #endif
 
@@ -202,134 +116,116 @@ int main(int const argc, char const* const argv[]) {
         return -1;
     }
 
-    cl::Platform platform = cl_try("getting default platform object"
-                                  ,[] { return cl::Platform::getDefault(); });
-    cl::vector<cl::Device> devices;
-    cl_try("fetching device list", [&] { platform.getDevices(*device_type, &devices); });
-
-    struct Device_Info {
-        cl::Device  device;
-        std::string name, vendor, version, profile, type;
-        std::vector<std::string> extensions;
-        cl_uint  hzMax;
-        cl_ulong memLocal, memGlobal;
-        cl_bool  available;
-    };
-
-    std::vector<Device_Info> devices_info(devices.size());
-    cl_try("fetching device info", [&] {
-        std::transform(devices.begin(), devices.end(), devices_info.begin(), [&](cl::Device& d) {
-            Device_Info info {};
-            info.device     = d;
-            info.name       = d.getInfo<CL_DEVICE_NAME>();
-            info.vendor     = d.getInfo<CL_DEVICE_VENDOR>();
-            info.version    = d.getInfo<CL_DEVICE_VERSION>();
-            info.profile    = d.getInfo<CL_DEVICE_PROFILE>();
-            info.type       = cl_device_type_string(d.getInfo<CL_DEVICE_TYPE>());
-            info.hzMax      = d.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>();
-            info.memLocal   = d.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
-            info.memGlobal  = d.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>();
-            info.available  = d.getInfo<CL_DEVICE_AVAILABLE>();
-            info.extensions = cl_splice_extensions(d.getInfo<CL_DEVICE_EXTENSIONS>().c_str());
-            return info;
-        });
-    });
-    std::sort(devices_info.begin(), devices_info.end()
-             ,[](Device_Info const& a, Device_Info const& b) {
-        return std::tie(a.type, a.available, a.hzMax, a.memGlobal, a.memLocal) <
-               std::tie(b.type, b.available, b.hzMax, b.memGlobal, b.memLocal);
-    });
-
+    auto const platform     = cl_do("getting default platform object"
+                                   ,[] { return cl::Platform::getDefault(); });
     if (cmd_args.at("info").asBool()) {
-        cl_try("retrieving platform info", [&] {
-            auto extensions = cl_splice_extensions(platform.getInfo<CL_PLATFORM_EXTENSIONS>().c_str());
-            std::sort(extensions.begin(), extensions.end());
-
-            std::cout << "Platform: "       << platform.getInfo<CL_PLATFORM_NAME>()
-                      << "\n  Vendor    : " << platform.getInfo<CL_PLATFORM_VENDOR>()
-                      << "\n  Version   : " << platform.getInfo<CL_PLATFORM_VERSION>()
-                      << "\n  Profile   : " << platform.getInfo<CL_PLATFORM_PROFILE>()
-                      << "\n  Extensions:\n";
-            for (auto&& s : extensions)
-                std::cout << "    " << s << "\n";
-        });
-
-        
-
-        std::cout << "Devices reported (" << devices_info.size() << "):\n";
-        for (auto&& d : devices_info) {
-            std::cout << "Device: "       << d.name
-                      << "\n  Available : " << d.available
-                      << "\n  Type      : " << d.type
-                      << "\n  Vendor    : " << d.vendor
-                      << "\n  Version   : " << d.version
-                      << "\n  Profile   : " << d.profile
-                      << "\n  Clk Hz Max: " << d.hzMax
-                      << "\n  Mem Local : " << display_format_mem(d.memLocal)
-                      << "\n  Mem Global: " << display_format_mem(d.memGlobal)
-                      << "\n  Extensions:\n";
-            for (auto&& s : d.extensions)
-                std::cout << "    " << s << "\n";
-        }
-
+        cl_do("dumping platform info"
+             ,[&] { cl_platform_device_dump(platform, *device_type, std::cout); getchar(); });
         return 0;
     }
 
-    auto const deviceSelected = cl_try("selecting device", [&] {
-        for (auto&& d : devices_info) {
-            if (!d.available                            ) continue;
-            if (*device_type == CL_DEVICE_TYPE_ALL      ) return d;
 
-            auto const type = d.device.getInfo<CL_DEVICE_TYPE>();
-            if ((type & *device_type) == *device_type   ) return d;
-        }
-
+    auto const device_info  = cl_do("fetching device", [&] {
+        return cl_device_select_first(cl_platform_devices(platform, *device_type), *device_type);
+    });
+    if (!device_info) {
         std::cout << "No device satisfying requirements found. Requirements:\n"
                   << "  Device Type: " << cl_device_type_string(*device_type) << "\n";
-        exit(-1);
-        return Device_Info {}; // UNREACHABLE
-    });
-    std::cout << "Selected Device: " << deviceSelected.name;
+        return -1;
+    }
+    std::cout << "Selected " << *device_info;
 
-    auto const kernel = cl_try("building kernel...", [&] {
-        cl::Program prg(k_kernel_src, false);
-        try { prg.build({ deviceSelected.device }); }
-        catch (cl::Error& e) {
-            std::cerr << e.what() << "\n"
-                      << "Build Status : "  << prg.getBuildInfo<CL_PROGRAM_BUILD_STATUS >(deviceSelected.device) << "\n"
-                      << "Build Options: "  << prg.getBuildInfo<CL_PROGRAM_BUILD_OPTIONS>(deviceSelected.device) << "\n"
-                      << "Build Log    :\n" << prg.getBuildInfo<CL_PROGRAM_BUILD_LOG    >(deviceSelected.device) << "\n";
-            throw e;
-        }
 
-        return std::move(prg);
-    });
-    std::cout << "Compiled kernel.\n";
+    
+    tests_all(platform, device_info->device);
 
+
+
+
+
+    
 #if 0
+    auto       field_cost           = field_cost_from_img("data/7_ring_4096_2d.png");
+    field_cost_mutate_to_permeable(field_cost);
+    //auto const field_cost           = field_cost_constant(uvec2(1 << 14));
+    //auto const field_cost           = field_cost_random(uvec2(1 << 12), 1);
+    //auto const field_cost = field_cost_sin_checkerboard(uvec2(1 << 12), .5, 20);
+    /*auto const field_cost           = field_cost_parameteric(uvec2(1 << 12), [&](vec2 const xy) {
+        auto const speed_amplitude = .5;
+        auto const v = sin(10 * 2 * M_PI * xy + max(sin(vec2(xy.x, 0) * M_PI * 2.f * 10.f), vec2(0)) * M_PI * 2.f);
+        return float(1 + speed_amplitude * v.x * v.y);
+    });*/
+    std::cout << "Field Size: " << field_cost.size().x << ", " << field_cost.size().y << "\n";
 
-    cl::Program vectorAddProgram(std::string(sourceStr), false);
-    try
-    {
-        vectorAddProgram.build("");
+    double sum = 0, sum_sq = 0;
+    for (auto&& v : field_cost.backing_store()) {
+        sum += v;
+        sum_sq += v * v;
     }
-    catch (cl::Error e) {
-        std::cout << e.what() << "\n";
-        std::cout << "Build Status: " << vectorAddProgram.getBuildInfo<CL_PROGRAM_BUILD_STATUS>(cl::Device::getDefault()) << "\n";
-        std::cout << "Build Options:\t" << vectorAddProgram.getBuildInfo<CL_PROGRAM_BUILD_OPTIONS>(cl::Device::getDefault()) << "\n";
-        std::cout << "Build Log:\t " << vectorAddProgram.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl::Device::getDefault()) << "\n";
+    auto const sum_avg = sum / field_cost.size_flat();
+    double std_dv = sqrt(sum_sq / field_cost.size_flat() - sum_avg * sum_avg);
+    std::cout << "Standard speed deviation: " << std_dv << "\n"
+              << "Avg Speed: " << sum_avg << "\n";
 
-        return FAILURE;
+    auto const seed_points          = std::vector<uint2> { uint2(0) };//field_cost.size() / uint2(2) };
+    /*auto       fmm_solution_handle  = task_async("FMM baseline",
+        [&] { return eikonal_fmm_sequential(                      field_cost, seed_points); });*/
+    /*auto       fim_solution_handle  = task_async("FIM baseline",
+        [&] { return eikonal_fim_sequential(k_fim_minimum_change, field_cost, seed_points); });*/
+
+    HcmConfig hcm_config_base {};
+    hcm_config_base.fim_minimum_change      = k_fim_minimum_change;
+    hcm_config_base.cache_mode              = HcmConfig::CacheMode::Both;
+    hcm_config_base.compute_unit_overload   = 4; // high enough and we're basically Block FIM
+    hcm_config_base.workers_overload        = 1;
+    hcm_config_base.block_size              = 8;
+    //hcm_config_base.cache_mode              = HcmConfig::CacheMode::Both;
+    //hcm_config_base.compute_unit_overload   = 10; // high enough and we're basically Block FIM
+    //hcm_config_base.workers_overload        = 4;
+    //hcm_config_base.block_size              = 16;
+
+    auto       hcm_solution = eikonal_hcm_opencl(device_info->device, hcm_config_base
+                                                ,field_cost, seed_points);
+    //auto const fmm_solution = task_async_get("Baseline FMM", std::move(fmm_solution_handle));
+    //auto const fim_solution = task_async_get("Baseline FIM", std::move(fim_solution_handle));
+
+    
+
+    
+
+    //file_write_time_field("data/cost_field.png", field_cost);
+
+    //file_write_time_field("data/solution_fmm.png", fmm_solution);
+    //file_write_time_field("data/solution_fim.png", fim_solution);
+    file_write_time_field(("data/solution_" + config_name(hcm_config_base) + ".png").c_str()
+                         ,hcm_solution);
+    //write_diff("fim_vs_fmm", fim_solution, fmm_solution);
+    //write_diff((config_name(hcm_config_base) + "_vs_fmm").c_str(), hcm_solution, fmm_solution);
+    //write_diff((config_name(hcm_config_base) + "_vs_fim").c_str(), hcm_solution, fim_solution);
+
+    auto const test_alternate_config = [&](HcmConfig::CacheMode::Type const cache_mode
+                                          ,u8                         const block_size) {
+        HcmConfig hcm_config_extra  = hcm_config_base;
+        hcm_config_extra.cache_mode = cache_mode;
+        hcm_config_extra.block_size = block_size;
+
+        auto solution = eikonal_hcm_opencl(device_info->device, hcm_config_extra
+                                          ,field_cost, seed_points);
+        file_write_time_field(("data/solution_" + config_name(hcm_config_extra) + ".png").c_str()
+                             ,solution);
+        write_diff((config_name(hcm_config_extra) + "_vs_" + config_name(hcm_config_base)).c_str()
+                  ,solution, hcm_solution);
+    };
+
+    for (auto cache_mode = HcmConfig::CacheMode::None;
+              cache_mode < HcmConfig::CacheMode::COUNT__;
+              cache_mode = HcmConfig::CacheMode::Type(cache_mode + 1)) {
+        for (u8 block_size = 8; block_size <= 32; block_size *= 2)
+            ;// test_alternate_config(cache_mode, block_size);
     }
-    typedef cl::make_kernel<
-        cl::Buffer&,
-        cl::Buffer&,
-        cl::Buffer&
-    > KernelType;
-
-    // create kernel as a functor
-    KernelType vectorAddKernel(vectorAddProgram, "vectorAdd");
 #endif
+    std::cout << "Now what?\n";
+    getchar();
     return 0;
 }
 
