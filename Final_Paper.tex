@@ -202,10 +202,10 @@ Future Work
 
 The Eikonal equation is a partial differential equation with numerous applications (e.g. pathfinding, seismic modelling, optimal control). While there exist a number of parallel algorithms for calculating numerical solutions for Eikonal equations, they typically assume infinite processors in their design.
 
-We present a hybrid approach for GPU hardware which attempts to strike a balance between maximising the possible parallelism while minimising the total work. We achieve this by using a scheme similar to Block FIM\cite{jeong2008fast}, save that blocks are prioritised for execution based on the lowest $|g(x)|$ contained within. This ensures that we do not waste time processing candidates who are far ahead of our known wavefront. We show that the cost of maintaining this priority queue is worthwhile in practice both for large grid volumes ($2^{24} < $ grid points) and when attempting to solve certain pathological Eikonal fields.
+We present a hybrid approach for GPU hardware which attempts to strike a balance between maximising the possible parallelism while minimising the total work. We achieve this by using a scheme similar to Block FIM\cite{jeong2008fast}, save that blocks are prioritised for execution based on their earliest possible arrival time. This ensures that we do not waste time processing candidates who are far ahead of our known wavefront. We show that the cost of maintaining this priority queue is worthwhile in practice both for large grid volumes ($2^{24} < $ grid points) and when attempting to solve certain Eikonal equations pathological to FIM.
 
 An overview of the Eikonal equation is provided in \autoref{sec:eikonal}, and \autoref{sec:lit_review} lists previous work relevant to our design relevant.
-\autoref{sec:design} covers the design of our system and notable implementation details. \autoref{sec:results} details our testing hardware, the performance results of our approach on a number of test cases, and a comparison to other methods. \autoref{sec:conclusion} summarises our results, and lays out possible avenues for future work.
+\autoref{sec:design} and \autoref{sec:implementation} covers the design of our system and notable implementation details. \autoref{sec:results} details our testing hardware, the performance results of our approach on a number of test cases, and a comparison to other methods. \autoref{sec:conclusion} summarises our results, and lays out possible avenues for future work.
 
 \begin{comment}
 Introduce your project topic (start from parallel computing in
@@ -236,9 +236,9 @@ The Eikonal equation is a partial differential equation of the form:
 |\nabla g(y)| = 0			  , \quad y \in \Omega \subseteq R^n
 \end{equation*}
 
-The equation describes the propagation of a wavefront from one or more sources. $g(x)$ denotes the time to the nearest-source at $x$, whilst $f(x)$ denotes the (positive) speed of the wavefront at $x$. $\Omega$ designates the set of sources.
+The equation describes the propagation of a wavefront from one or more sources. $g(x)$ denotes the time to the nearest-source to $x$, whilst $f(x)$ denotes the (positive) speed of the wavefront at $x$. $\Omega$ designates the set of sources.
 
-We provide an approximation for $g(x)$ by defining a discrete Cartesian grid with $n$ dimensions. $h_{0 <= i < n}$ denotes the size of each grid point within this grid along the $i^{th}$ axis. A Godunov upwind difference scheme can be used to calculate a discretised solution of $g(x)$ by solving for $u(x)$ in $G(x) = 0$ where $G(x)$ defined as follows\cite{zhao2005fast}:
+We provide an approximation for $g(x)$ by defining a discrete Cartesian grid with $n$ dimensions. $h_{0 <= i < n}$ denotes the size of each grid point within this grid along the $i^{th}$ axis. A Godunov upwind difference scheme can be used to calculate a discretised solution of $g(x)$ by solving for $u(x)$ in $G(x) = 0$ where $G(x)$ defined as follows:\cite{zhao2005fast}
 \begin{equation}\label{eq:godunov_first_order_discrete}
 G(x) = \sum_{i=0}^{n}{(\frac{u(x) - u_{min_{i}}(x)}{h_i})^2} - (\frac{1}{f(x)})^2
 \end{equation}
@@ -257,23 +257,23 @@ Note that for our purposes we assume manhattan connectivity between grid points 
 
 \section{Literature Review} \label{sec:lit_review}
 
-There are a number of algorithms and variants for finding numerical solutions to Eikonal PDE. The main three are the Fast Marching Method\cite{sethian1996fast}, the Fast Sweeping Method\cite{zhao2005fast}, and the Fast Iterative Method\cite{jeong2008fast}.
+There are a number of algorithms and variants for finding numerical solutions to Eikonal PDE. The main three are the Fast Marching Method, the Fast Sweeping Method, and the Fast Iterative Method.
 
-\subsection{Fast Marching Method (FMM)}\label{sec:FMM}
-The classic algorithm for solving Eikonal equations is the Fast Marching Method\cite{tsitsiklis1995efficient}\cite{sethian1996fast}. It is a sequential label-setting algorithm extremely similar to Dijkstra's. The primary differences between them are that a node can enter a considered state without immediately progressing to the closed set, and the cost function considers flow from up to $n$ (in $R^n$) neighbour rather than simply the 'closest' one. Like Dijkstra its running time is bound by $O(|E| + |V| \cdot log(|V|))$ but due to the connectivity of the grid it is technically $O(|V| \cdot log(|V|))$ but effectively $O(w \cdot log(w)$ where $w$ is maximum wavefront size. It is worth noting that FMM has among the best upper bound on run-time when compared to other algorithms.
+\subsection{Fast Marching Method (FMM)}\label{sec:FMM}\cite{tsitsiklis1995efficient}\cite{sethian1996fast}
+The classic algorithm for solving Eikonal equations is the Fast Marching Method. It is a sequential label-setting algorithm extremely similar to Dijkstra's. The primary differences between them are that a node can enter a considered state without immediately progressing to the closed set, and the cost function considers flow from up to $n$ (in $R^n$) neighbour rather than simply the 'closest' one. Like Dijkstra its running time is bound by $O(|E| + |V| \cdot log(|V|))$ but due to the connectivity of the grid it is technically $O(|V| \cdot log(|V|))$ but effectively $O(w \cdot log(w)$ where $w$ is maximum wavefront size. It is worth noting that FMM has among the best upper bound on run-time when compared to other algorithms.
 
-\subsection{Fast Sweeping Method (FSM)}\label{sec:FSM}
+\subsection{Fast Sweeping Method (FSM)}\label{sec:FSM}\cite{zhao2005fast}
 The Fast Sweeping Method is a label-correcting algorithm which (in its classic form) repeatedly sweeps forward and back along each axis in turn until the grid converges. For problems where the Eikonal is a weighted distance (i.e. $f(x) = c$ for all points) this requires no more than $2^n$ sweeps for $R^n$. In practice, the number of sweeps depends on how often characteristic curves' tangent change quadrant, which be prohibitively expensive. Even in near-ideal cases FSM is often outperformed by almost any other algorithm.\cite{jeong2008fast}\cite{gomez2015fast} Nevertheless, FSM offers one notable feature FMM and FIM lack: It requires no notion of an open-set to operate.
 
 \subsection{Fast Iterative Method (FIM)}\label{sec:FIM}
-The Fast Iterative Method is label-correcting algorithm designed for operation on GPUs. As such it forgoes the use of prioritising the open set, an operation which would require sorting (which is undesirable on a GPU). Instead, it maintains an unordered set of 'improvable' grid points and updates these in parallel. Improving a grid point's $u(x)$ potentially improves their neighbours; improved neighbours are then (re-)inserted into the open set. This continues until the grid converges.
+The Fast Iterative Method is label-correcting algorithm designed for partial operation on GPUs. It maintains an unordered set of 'improvable' grid points and updates these in parallel on the GPU. Improving a grid point's $u(x)$ potentially improves their neighbours', and those who do improve are then (re-)inserted into the open set. This continues until the grid converges.
 
 The use of an unordered open set avoids the sorting required to maintain the priority heap, while the label-correcting scheme permits parallel updates of entries in the open set. Overall FIM strikes a compromise between the brute force approach of FSM and the sequential precision of FMM.
 
-In practice the Block FIM variant is used. Block FIM differs from FIM in that the grid is decomposed into non-overlapping $m^2$ blocks (for some $0 < m$) which are processed until every grid point within a block converged. Blocks invalidate their neighbours in the same manner as grid points. This arrangement exploits that most Eikonals' $f(x)$ are locally constant on a short scale, improves memory coherence, and helps minimise the number of round-trips between the GPU and CPU. From here on 'FIM' implicitly refers to the block variant.
+In practice the Block FIM variant is used. Block FIM differs from FIM in that the grid is decomposed into non-overlapping $m^2$ blocks (for some $0 < m$) which are processed until every grid point within a block converged. Blocks invalidate their neighbours in the same manner as grid points. This arrangement exploits that most Eikonals' $f(x)$ are locally constant on a short scale (thus require few iterations to converge), improves memory coherence, and helps minimise the number of round-trips between the GPU and CPU. From here on 'FIM' implicitly refers to the block variant.
 
 \subsection{(Parallel) Heap Cell Method (HCM, pHCM)}\label{sec:HCM}
-The Heap Cell Method\cite{chacon2012fast} (and its parallelised variant, pHCM\cite{chacon2014parallel}) is a hybrid of FMM and FSM. FMM is used to schedule small blocks (termed 'cells', typically $\le 2^8$) which are solved using FSM. Like Block FIM, this is to exploit that most speed fields are locally constant on a small scale, allowing effective use of FSM and reducing the problem size which must be tracked by FMM. This approach is extremely similar to our design, though it approaches the problem from the opposite direction: HCM uses FSM-on-small-blocks to reduce the cost of managing a priority heap, while we use a priority heap to reduce the number of block-solves.
+The Heap Cell Method\cite{chacon2012fast} (and its parallelised variant, pHCM\cite{chacon2014parallel}) is a hybrid of FMM and FSM. FMM is used to schedule small blocks (termed \textit{cells}, typically $\le 2^8$) which are solved using FSM. Like Block FIM, this is to exploit that most speed fields are locally constant on a small scale, allowing effective use of FSM and reducing the problem size which must be tracked by FMM. This approach is extremely similar to our design, though it approaches the problem from the opposite direction: HCM uses FSM-on-small-blocks to reduce the cost of managing a priority heap, while we use a priority heap to reduce the number of block-solves.
 
 \begin{comment}
 classic algos: FMM, FSM, FIM
@@ -301,7 +301,7 @@ project.
 \section{Design} \label{sec:design}
 % ############################################################################
 
-The main issue with FIM is that its design implicitly assumes infinite GPU parallelism. FIM's open set includes all blocks which might be improvable due to the previous iteration; this includes block which are 'far away' (causally speaking). (See \autoref{fig:7_ring_4096_open_set}.) Since FIM processes all blocks in its open set at every iteration this can lead to blocks being repeatedly solved without contributing to the final solution in any way. Rescheduling is useless in this case as it assumes that all tasks contribute to the final result, which is not true for FIM.
+The main issue with FIM is that its design implicitly assumes infinite GPU parallelism. FIM's open set includes all blocks which might be improvable due to the previous iteration; this includes block which are 'far away' (causally speaking, see \autoref{fig:7_ring_4096_open_set}). Since FIM processes all blocks in its open set at every iteration this can lead to blocks being repeatedly solved without contributing to the final solution in any way. Rescheduling is useless in this case as it assumes that all tasks contribute to the final result, which is not true for FIM.
 
 \begin{figure}
 \centering
@@ -397,16 +397,16 @@ while $\neg$empty open-blocks:
 Add defintion for block-FIM-solve?
 \end{comment}
 
-Indeed, it is effectively HCM but with a parallel block solving phase. pHCM differs from gHCM in that it features parallel block heaps.
+Indeed, it is effectively HCM but with a parallel block solving phase. pHCM differs from gHCM in that it features concurrent load-balancing priority queues on multiple processors which also solve the blocks, rather than a single priority queue on a single processor which dispatches to a GPU.
 
 \subsection{Block Priority}
 
 We define the priority of a block as follows:
 \begin{equation}\label{eq:block_priority_func}
-t(b) = min(\{ u(x) | x \in \{b\} \cup \Gamma(b) \})
+t(b) = min(\{ \; u(x) \; | \; x \in \{b\} \cup \Gamma(b) \; \})
 \end{equation}
 
-Where $\Gamma(b)$ is the neighbours of a block. We are interested in the earliest possible time the block $b$ might converge to; thus the $min$ of ourselves and our neighbours provides a good approximation that can be easily tracked \& updated per block while handling the cases where a block contains a source (always a good pick) or contains no sources and is considered for the first time (i.e. $min(\{ u(x) | x \in b \} = \inf$).
+Where $\Gamma(b)$ is the neighbours of a block. We are interested in the earliest possible time the block $b$ might converge to; thus the $min$ of ourselves and our neighbours provides a good approximation that can be easily tracked \& updated per block while handling the cases where a block contains a source (always a good pick) or contains no sources and is considered for the first time (i.e. $min(\{ \; u(x) \; | \;  x \in b \} = \inf$).
 
 \subsection{Blocks, Bundles, and Behaviour}
 We replace FIM's open set with a min heap sorted on $t(b)$. We then select up to $k$ minimum entries, which we term 'bundles', and dispatch these to the GPU for solving.
@@ -446,23 +446,6 @@ c_{ghcm_k}	&= c_{block} * s_{ghcm_k} + c_{heap} * log_2(z_k)	\\
 \end{equation}
 
 For our method to outperform FIM the inequality in \autoref{eq:basic_ghcm_cost_model} must hold. $s$ and $z_k$ are both problem dependent; $z_k$ is also dependent on $k$ and the dimensionality of grid, and bound by the grid size divided by $m^n$ (for $R^n$).
-
-
-\begin{comment}
-after n iter in R^2:
-	|FMM open set| <= min(3(n-1) + 4, $grid_size^2$)    (iter 0: 4, iter 1: +3, iter 2: +3, ....)
-	|FIM open set| <= min($2*n^2$   , $grid_size^2$)
-	|gHCM open set| <= |FIM open set|
-					<= 4 | FMM open set | + (k-4) * 2
-	2n^2 - 2(n-1)^2 = 2(n^2 - (n^2 - 2n + 1)) = (k, n) + 2
-
-
-
-$s_{FIM}$ = avg \# of solves for a block using FIM
-$s_{gHCM}$ = avg \# of solves for a block using gHCM
-$s_{gFMM}$ = avg \# of solves for a block using gFMM
-\end{comment}
-
 
 
 
@@ -523,7 +506,7 @@ Prior to anything else, we 'bake' some information in order to simplify the rema
 
 \subsection{Hardware}
 
-Current GPUs are fickle devices with a wide range of characteristics (device memory, local memory, access latencies, number of compute units, specialised per-compute unit communication primitives, etc.), and as such PRAM models are only helpful for guiding one's broad designs for algorithms operating on these architectures. Obtaining maximum performance often requires implementations tailored to the device in question. or, at the very least, specialised tuning of configurable parameters. In particular, our available hardware\footnote{NVidia only supports OpenCL 1.2, regardless of the capabilities of their hardware. Presumably they're content with CUDA's stranglehold on scientific computing.}, an AMD R9 280x, only supported OpenCL 1.2 which prevented us from using certain features available in OpenCL 2.0+ that might have further improved performance or allowed alternative designs. (See \autoref{tab:r280x_stats}.)
+Current GPUs are fickle devices with a wide range of characteristics (device memory, local memory, access latencies, number of compute units, specialised per-compute unit communication primitives, etc.), and as such PRAM models are only helpful for guiding one's broad designs for algorithms operating on these architectures. Obtaining maximum performance often requires implementations tailored to the device in question or, at the very least, specialised tuning of configurable parameters. In particular, our available hardware\footnote{NVidia only supports OpenCL 1.2, regardless of the capabilities of their hardware. Presumably they're content with CUDA's stranglehold on scientific computing.}, an AMD R9 280x, only supported OpenCL 1.2 which prevented us from using certain features available in OpenCL 2.0+ that might have further improved performance or allowed alternative designs. (See \autoref{tab:r280x_stats}.)
 
 \begin{table}
 \centering
@@ -544,7 +527,7 @@ Current GPUs are fickle devices with a wide range of characteristics (device mem
 
 \subsection{Block Solver Kernels} \label{sec:block_kernels}
 
-Jeong and Whitaker (2008)\cite{jeong2008fast} are not clear as to how they implement their block-solver kernel. One might assume they implement a limited form of FIM within the block kernel, but this seems unlikely for a few reasons. Their $m$ (block size) is $4^3 = 64$, twice an NVidia warp (their targeted hardware), and they make no mention of design or implementation concerns other than briefly mentioning a stream reduction for determining if a block has converged.
+Jeong and Whitaker (2008)\cite{jeong2008fast} are not clear as to how they implement their block-solver kernel. One might assume they implemented a limited form of FIM within the block kernel, but this seems unlikely for a few reasons. Their $m$ (block size) is $4^3 = 64$, twice an NVidia warp (their targeted hardware), and they make no mention of design or implementation concerns other than briefly mentioning a stream reduction for determining if a block has converged.
 
 We therefore implemented two interchangeable kernels for solving blocks: A systolic-like brute force iterative solver, and an implementation of FIM.
 
@@ -559,10 +542,11 @@ Our hardware has wavefronts of size 64, allowing a convenient 1-to-1 mapping wit
 		\cline{3-14}
 		\multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$m=8$}                       & \multicolumn{4}{c|}{$m=16$}       & \multicolumn{4}{c|}{$m=32$}     \\ \cline{3-14} 
 		\multicolumn{2}{r|}{$w=$} 			& $1$       		& $64$   & $128$    & $256$    & 1           & 64    & 128  & 256  & 1           & 64    & 128 & 256 \\ \hline
-		Minimum $u(x)$       & $4w$	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1\\ \hline
-		Cache - $u(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
-		Cache - $f(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
-		\multicolumn{2}{|r|}{Total KiB}	&0.5	&0.7	&1	&1.5	&2	&2.2	&2.5	&3	&8	&8.2	&8.5	&9\\ \hline
+Minimum $u(x)$ Seen       & $4w$	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1\\ \hline
+Voting Scratchpad         & $2w$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$\\ \hline
+Cache (Optional) - $u(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
+Cache (Optional) - $f(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
+\multicolumn{2}{|r|}{Total KiB}	&0.5	&0.8	&1.2	&2	&2	&2.3	&2.7	&3.5	&8	&8.3	&8.7	&9.5\\ \hline
 	\end{tabular}
 	\caption{Systolic Kernel local memory budget.\footnotemark }
 	\label{tab:kernel_mem_budget_systolic}
@@ -646,12 +630,13 @@ We define $w$ to be the size of the work-group in question. In our implementatio
 \cline{3-14}
 \multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$m=8$}                       & \multicolumn{4}{c|}{$m=16$}       & \multicolumn{4}{c|}{$m=32$}     \\ \cline{3-14} 
 \multicolumn{2}{r|}{$w=$} 			& $1$       		& $64$   & $128$    & $256$    & 1           & 64    & 128  & 256  & 1           & 64    & 128 & 256 \\ \hline
-Minimum $u(x)$       & $4w$	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1\\ \hline
-Open List                 & $2w$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$\\ \hline
+Minimum $u(x)$ Seen       & $4w$	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1	&$\frac{1}{256}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&1\\ \hline
+Voting Scratchpad         & $2w$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$	&$\frac{1}{512}$	&$\frac{1}{8}$	&$\frac{1}{4}$	&$\frac{1}{2}$\\ \hline
+Open List                 & $2m^2$	&$\frac{1}{8}$	&$\frac{1}{8}$	&$\frac{1}{8}$	&$\frac{1}{8}$	&$\frac{1}{2}$	&$\frac{1}{2}$	&$\frac{1}{2}$	&$\frac{1}{2}$	&2	&2	&2	&2\\ \hline
 Open Set                  & $m^2$	&$\frac{1}{16}$	&$\frac{1}{16}$	&$\frac{1}{16}$	&$\frac{1}{16}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1\\ \hline
-Cache - $u(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
-Cache - $f(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
-\multicolumn{2}{|r|}{Total KiB}	&0.5	&0.9	&1.3	&2	&2.2	&2.6	&3	&3.7	&9	&9.3	&9.7	&10.5		\\ \hline
+Cache (Optional) - $u(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
+Cache (Optional) - $f(x)$ & $4m^2$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&$\frac{1}{4}$	&1	&1	&1	&1	&4	&4	&4	&4\\ \hline
+\multicolumn{2}{|r|}{Total KiB}	&0.6	&1	&1.4	&2.1	&2.7	&3.1	&3.5	&4.2	&11	&11.3	&11.7	&12.5\\ \hline
 \end{tabular}
 \caption{FIM Kernel local memory budget.}
 \label{tab:kernel_mem_budget_fim}
@@ -663,7 +648,9 @@ We implement the open set traversal by using two phases: \textit{Marking}, and \
 \paragraph{Marking}
 This phase satisfies the set operations required. We allocate an $m^2$ local array of \texttt{bool} (our hardware supports byte-addressable local memory), and the buffer is carefully updated in two sub-phases to allow unlocked transactional (i.e. atomic commit) current writes. The buffer is used in a CRCW manner, specifically one where all concurrent writes to the same location write the same value.
 
-The correctness of the \textit{Marking} phase is dependent on the device's local memory architecture allowing concurrent non-overriding writes to adjacent byte locations. \textbf{This does not hold true for most systems.} For those systems which do not support this, \texttt{bool} can be replaced with a next larger type which support transactional writes (e.g. \texttt{int32} on AMD64.\footnote{This is very tricky in practice and we recommend the use of explicit atomic instructions \& the appropriate compiler barriers.}). In our case, the use of explicit atomics requires at least \texttt{int32} or \texttt{uint32}. This would increase the size of the open-set buffer by 400\%, which was unacceptable considering our device characteristics and other memory requirements. (See \autoref{tab:r280x_stats} and \autoref{tab:kernel_mem_budget_fim}.)
+The correctness of the \textit{Marking} phase is dependent on the device's local memory architecture allowing non-conflicting writes to adjacent byte locations. This does not hold true for most systems. For those systems which do not support this, \texttt{bool} can be replaced with a next larger type which support non-conflicting writes (e.g. \texttt{int32} on AMD64.\footnote{This is very tricky to exploit in practice and we recommend the use of explicit atomic instructions \& the appropriate compiler barriers.}). In our case, the use of explicit atomics requires at least \texttt{int32} or \texttt{uint32}. This would increase the size of the open-set buffer by 400\%, which was undesirable considering our device characteristics and other memory requirements. (See \autoref{tab:r280x_stats} and \autoref{tab:kernel_mem_budget_fim}. Note that wish to avoid filling our entire 32 KiB Local Mem since there'll be more than one workgroup running on a CU.)
+
+
 
 \paragraph{Compaction}
 In this phase we populate a dense array of entries marked \texttt{true} in the open set. By our constraint of $m^n < 2^{16}$, we use an \text{uint16} array of length $w$ as our open list. We brute force traverse the open set in parallel, accumulating a count of \texttt{true} entries. We then assign spans of our open list using prescan, and populate the open list using another brute force parallel traversal of the open set.
@@ -807,7 +794,7 @@ Our system is a commodity desktop machine equipped with 16 GiB of RAM, an 8-core
 
 \subsection{Test Cases} \label{sec:test_cases}
 
-Our test cases are in $R^2$. This is the least favourable dimensionality for our approach, as higher dimensionality problems offer both the potential for a larger wave-front (and thus, parallelism), while increasing the computation required per grid point (which would favour dumb \& crunchy hardware such as a GPU). We exercise our system on 6 different problems with a grid size of $4096^2$, all with a source located at $(0, 0)$\footnote{This is also unfavourable to us as it effectively quarters the maximum possible wavefront size.}.
+Our test cases are in $R^2$. This is the least favourable dimensionality for our approach, as higher dimensionality problems offer both the potential for a larger wavefront (and thus, parallelism), while increasing the computation required per grid point (which would favour dumb \& crunchy hardware such as a GPU). We exercise our system on 6 different problems with a grid size of $4096^2$, all with a source located at $(0, 0)$\footnote{This is also unfavourable to us as it effectively quarters the maximum possible wavefront size.}.
 
 \begin{enumerate}[noitemsep]
 \item Constant: $f(x, y) = 1$. Easiest possible problem.
@@ -993,7 +980,7 @@ Show:
 
 There are a number of configurable parameters that depend on the hardware in question. (See \autoref{sec:design}.) \autoref{fig:perf_results_main_1} and \autoref{fig:perf_results_main_2} contains the runtime for each test case against sequential FMM, sequential FIM, and a number of gHCM configurations.
 
-We do not present a traditional speedup graph. This is due to the fact that our method is not strictly about enabling as much parallelism as possible, but making better use of available hardware. (See \autoref{sec:design}.) That said, give the structure of our approach we can claim that the speed-up is no worse than FIM's (simply set $k=\infty$). A rough estimate of how a Block FIM implementation might perform can be gained by looking at entries for gHCM-systolic with a high compute-overload (CU) in the performance plot. Note that even in the high compute-overload cases listed (e.g. 32), the open-set frequently remains greater than the bundles dispatched. (e.g. Compute-overload 32 with 32 compute units yields a bundle of 1024, yet the open-set can easily reach four or five times that much in 7-ring permeable.)
+We do not present a traditional speed-up graph. This is due to the fact that our method is not strictly about enabling as much parallelism as possible, but making better use of available hardware. That said, given the structure of our approach we can claim that the maximum speed-up is essentially FIM's (set $k=\infty$, and forgo ordering the open set when $k = \infty$). A rough estimate of how a Block FIM implementation might perform can be gained by looking at entries for gHCM-systolic with a high compute-overload (CU) in the performance plot. Note that even in the high compute-overload cases listed (e.g. 32), the open-set frequently remains greater than the bundles dispatched. (e.g. Compute-overload 32 with 32 compute units yields a bundle of 1024, yet the open-set can reach four thousand in 7-ring permeable.)
 
 \begin{figure}%[!b]
 	\centering
@@ -1085,7 +1072,7 @@ We do not present a traditional speedup graph. This is due to the fact that our 
 
 We implemented a modified version of FIM similar to HCM. This new scheme improves performance in a number of scenarios, but requires tuning to the hosting hardware and to a lesser degree the general nature of the problems being solved. We also tested two block-solving kernels: one systolic-styled, and the other an implementation of FIM. We expected the simplicity of the systolic kernel to be more effective, but the FIM kernel proved competitive than we had anticipated. Our implementation has not had much work given to optimisation. (See \autoref{fig:perf_results_main_2}, 7-Ring Permeable.) We only had time to do some simple OpenCL API tweaks, and we believe some notable gains could be had with a bit of polish on both CPU and GPU ends.
 
-During testing, we encountered a few instances where gHCM failed to converge. Some of these were found to be bugs, but the rest remain a mystery. Given the difficultly of reproducing these issues with a debug kernel, and the fact that our hosting system seems prone occasional HW failure\footnote{The bloody thing occasionally panics with HW faults reported by the kernel. Honestly I don't know if this is due to slightly flaky hardware (quite possible, my RAM doesn't perform at its full rated speed, and the GPU occasionally manifests texture corruption), magic gamma rays, or terrible drivers.}, we've not manage to investigate this to our satisfaction.
+During testing, we encountered a few instances where gHCM failed to converge as well deadlocks in the OpenCL runtime. Some of these were found to be bugs in our code, but the rest remain a mystery. Given the difficultly of reproducing these issues with a debug kernel, and the fact that our hosting system seems prone occasional HW failure\footnote{The bloody thing occasionally panics with HW faults reported by the kernel. Honestly I don't know if this is due to slightly flaky hardware (quite possible, my RAM doesn't perform at its full rated speed, and the GPU occasionally manifests texture corruption), magic gamma rays, or terrible drivers.}, we've not manage to investigate this to our satisfaction.
 
 Possible future work includes: deriving a more precise model for balancing compute-unit overload, investigating if GMM could be a good replacement for the priority heap in gHCM, investigating if and how device-side kernel en-queuing might be exploited (might it possible to effectively drive gHCM on-device?), and testing to see if the texture systems on the GPU can be exploited to obtain better memory locality without resorting to manual z-ordering.
 
